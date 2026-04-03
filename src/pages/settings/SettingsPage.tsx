@@ -38,7 +38,7 @@ export default function SettingsPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {/* Menu Bar */}
-      <div className="border-b bg-background px-4 py-3 flex items-center gap-4">
+      <div className="border-b bg-background px-4 py-3 flex items-center">
         <Button
           variant="ghost"
           size="icon"
@@ -47,7 +47,7 @@ export default function SettingsPage() {
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <p className="ml-4">Settings</p>
+        <p>Settings</p>
       </div>
 
       {/* Settings Content */}
