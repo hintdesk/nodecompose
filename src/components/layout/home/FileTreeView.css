@@ -1,0 +1,24 @@
+.file-tree-view {
+  background-color: var(--background);
+  padding: 0.5rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+}
+
+.file-tree-view::-webkit-scrollbar {
+  width: 12px;
+}
+
+.file-tree-view::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.file-tree-view::-webkit-scrollbar-thumb {
+  background: var(--muted);
+  border-radius: 6px;
+}
+
+.file-tree-view::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}

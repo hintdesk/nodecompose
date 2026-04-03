@@ -1,0 +1,27 @@
+.workspace-form-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.workspace-form-container input,
+.workspace-form-container select {
+  background-color: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+.workspace-form-container input:focus,
+.workspace-form-container select:focus {
+  outline: none;
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.workspace-form-container input:disabled,
+.workspace-form-container select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

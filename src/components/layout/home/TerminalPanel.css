@@ -1,0 +1,29 @@
+.terminal-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+  border-top: 1px solid var(--border);
+}
+
+.terminal-panel :is(.xterm) {
+  padding: 8px;
+  height: 100%;
+  text-align: left;
+}
+
+.terminal-panel :is(.xterm-screen) {
+  background-color: #1e1e1e;
+  text-align: left;
+}
+
+.terminal-panel :is(.xterm-viewport) {
+  background-color: #1e1e1e;
+  text-align: left;
+}
+
+.terminal-panel :is(.xterm-cursor) {
+  background-color: #d4d4d4;
+  color: #1e1e1e;
+}

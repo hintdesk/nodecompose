@@ -1,0 +1,19 @@
+.workspace-list-container {
+  overflow-x: auto;
+}
+
+table {
+  font-size: 0.875rem;
+}
+
+thead {
+  background-color: var(--muted);
+}
+
+tbody tr {
+  border-bottom: 1px solid var(--border);
+}
+
+tbody tr:hover {
+  background-color: var(--muted);
+}

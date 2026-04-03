@@ -1,11 +1,20 @@
-import { Button } from "@/components/ui/button"
+import { Routes, Route, Navigate } from 'react-router-dom'
+import HomePage from './pages/home/HomePage'
+import SettingsPage from './pages/settings/SettingsPage'
+import { ThemeProvider } from "@/components/theme-provider"
+
 
 function App() {
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center">
-      <Button>Click me</Button>
-    </div>
+    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </ThemeProvider>
+
   )
 }
- 
+
 export default App

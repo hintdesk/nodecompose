@@ -1,0 +1,23 @@
+.settings-sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.settings-sidebar::-webkit-scrollbar {
+  width: 12px;
+}
+
+.settings-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.settings-sidebar::-webkit-scrollbar-thumb {
+  background: var(--muted);
+  border-radius: 6px;
+}
+
+.settings-sidebar::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
