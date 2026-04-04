@@ -1,4 +1,4 @@
 - Always confirm if the app is able to compile by running "npm run start" before completing the session.
 - Use PascalCase for properties of interfaces or classes.
 - If you need a shadcn component, NEVER generate it. Install it with the command "npx shadcn@latest add [component-name]".
-- NEVER edit file index.css
+- NEVER edit file index.css and files in /src/components/ui

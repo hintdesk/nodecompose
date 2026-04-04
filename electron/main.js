@@ -2,9 +2,12 @@ import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import os from 'os';
+import crypto from 'crypto';
 import { spawn } from 'child_process';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import pty from 'node-pty';
 
 const execPromise = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
@@ -73,11 +76,16 @@ ipcMain.handle('file:list', async (event, dirPath) => {
         const files = fs.readdirSync(dirPath, { withFileTypes: true });
         const result = files
             .filter(file => !file.name.startsWith('.'))
-            .map(file => ({
-                name: file.name,
-                isDirectory: file.isDirectory(),
-                path: path.join(dirPath, file.name),
-            }))
+            .map(file => {
+                const fullPath = path.join(dirPath, file.name);
+                const stats = fs.statSync(fullPath);
+                return {
+                    name: file.name,
+                    isDirectory: file.isDirectory(),
+                    path: fullPath,
+                    ModifiedAt: stats.mtime.toISOString(),
+                };
+            })
             .sort((a, b) => {
                 if (a.isDirectory !== b.isDirectory) {
                     return b.isDirectory ? 1 : -1;
@@ -102,6 +110,57 @@ ipcMain.handle('file:mkdir', async (event, dirPath) => {
     try {
         fs.mkdirSync(dirPath, { recursive: true });
         return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('file:delete', async (event, filePath) => {
+    try {
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+        }
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('file:rmdir', async (event, dirPath) => {
+    try {
+        if (fs.existsSync(dirPath)) {
+            fs.rmSync(dirPath, { recursive: true, force: true });
+        }
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('file:hash', async (event, filePath) => {
+    try {
+        return new Promise((resolve, reject) => {
+            const hash = crypto.createHash('sha256');
+            const stream = fs.createReadStream(filePath);
+
+            stream.on('data', (data) => hash.update(data));
+            stream.on('end', () => {
+                resolve({ success: true, hash: hash.digest('hex') });
+            });
+            stream.on('error', (err) => {
+                reject({ success: false, error: err.message });
+            });
+        });
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+// ==================== SYSTEM OPERATIONS ====================
+
+ipcMain.handle('system:tmpdir', async (event) => {
+    try {
+        return { success: true, tmpdir: os.tmpdir() };
     } catch (error) {
         return { success: false, error: error.message };
     }
@@ -174,14 +233,13 @@ ipcMain.handle('terminal:create', async (event, workspaceFolder) => {
             args = [];
         }
 
-        const ptyProcess = spawn(shell, args, {
+        const ptyProcess = pty.spawn(shell, args, {
+            name: 'xterm-256color',
+            cols: 120,
+            rows: 30,
             cwd: workspaceFolder,
-            stdio: ['pipe', 'pipe', 'pipe'],
-            shell: false,
+            env: process.env,
         });
-
-        // Keep stdin open and writable
-        ptyProcess.stdin.setDefaultEncoding('utf-8');
 
         // Store the process
         terminalSessions.set(sessionId, {
@@ -190,21 +248,13 @@ ipcMain.handle('terminal:create', async (event, workspaceFolder) => {
         });
 
         // Handle output
-        ptyProcess.stdout.on('data', (data) => {
+        ptyProcess.onData((data) => {
             mainWindow.webContents.send(`terminal:${sessionId}:data`, data.toString());
         });
 
-        ptyProcess.stderr.on('data', (data) => {
-            mainWindow.webContents.send(`terminal:${sessionId}:data`, data.toString());
-        });
-
-        ptyProcess.on('close', (code) => {
+        ptyProcess.onExit(({ exitCode }) => {
             terminalSessions.delete(sessionId);
-            mainWindow.webContents.send(`terminal:${sessionId}:close`, code);
-        });
-
-        ptyProcess.on('error', (error) => {
-            console.error('Terminal process error:', error);
+            mainWindow.webContents.send(`terminal:${sessionId}:close`, exitCode);
         });
 
         return { success: true, sessionId };
@@ -220,7 +270,7 @@ ipcMain.handle('terminal:write', async (event, params) => {
         if (!session) {
             return { success: false, error: 'Session not found' };
         }
-        session.process.stdin.write(data);
+        session.process.write(data);
         return { success: true };
     } catch (error) {
         return { success: false, error: error.message };

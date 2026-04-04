@@ -32,6 +32,7 @@ export interface FileItem {
   name: string;
   isDirectory: boolean;
   path: string;
+  ModifiedAt?: string;
 }
 
 export async function listDirectory(dirPath: string): Promise<FileItem[]> {
@@ -55,6 +56,38 @@ export async function createDirectory(dirPath: string): Promise<void> {
   if (!result.success) {
     throw new Error(result.error);
   }
+}
+
+export async function deleteFile(filePath: string): Promise<void> {
+  const result = await electron.invoke('file:delete', filePath);
+  if (!result.success) {
+    throw new Error(result.error);
+  }
+}
+
+export async function removeDirectory(dirPath: string): Promise<void> {
+  const result = await electron.invoke('file:rmdir', dirPath);
+  if (!result.success) {
+    throw new Error(result.error);
+  }
+}
+
+export async function getFileHash(filePath: string): Promise<string> {
+  const result = await electron.invoke('file:hash', filePath);
+  if (!result.success) {
+    throw new Error(result.error);
+  }
+  return result.hash;
+}
+
+// ==================== SYSTEM OPERATIONS ====================
+
+export async function getTmpDir(): Promise<string> {
+  const result = await electron.invoke('system:tmpdir');
+  if (!result.success) {
+    throw new Error(result.error);
+  }
+  return result.tmpdir;
 }
 
 // ==================== FOLDER PICKER ====================
