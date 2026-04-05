@@ -1,20 +1,12 @@
-import { useState, useEffect } from 'react'
-import type { Workspace } from '@/entities/Workspace'
-import { workspaceService } from '@/services/workspace.service'
-import { Button } from '@/components/ui/button'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { Plus } from 'lucide-react'
-import WorkspaceList from './WorkspaceList'
-import WorkspaceForm from './WorkspaceForm'
 import './Workspaces.css'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogTitle, } from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import { Plus } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { workspaceService } from '@/services/workspace.service'
+import type { Workspace } from '@/entities/Workspace'
+import WorkspaceForm from './WorkspaceForm'
+import WorkspaceList from './WorkspaceList'
 
 type ViewMode = 'list' | 'create' | 'edit'
 
@@ -85,8 +77,8 @@ export default function Workspaces({ onWorkspaceListChange }: WorkspacesProps) {
       {viewMode === 'list' && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold">Workspaces</h2>
-            <Button onClick={handleNew} className="gap-2">
+            <h2 className="text-sm font-bold">Workspaces</h2>
+            <Button onClick={handleNew} variant="outline">
               <Plus className="h-4 w-4" />
               New
             </Button>
