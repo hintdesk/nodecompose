@@ -187,7 +187,7 @@ export const workflowService = {
       const payload = getPushPayload(local)
       const putResponse = await n8nService.updateWorkflow(baseUrl, workflowId, payload, apiKey)
 
-      if (putResponse.status === 200) {
+      if (putResponse.StatusCode === 200) {
         // Fetch latest version from endpoint to ensure we have the most recent data
         const getLatestResponse = await n8nService.getWorkflow(baseUrl, apiKey, workflowId)
         const latest = getLatestResponse.Source
@@ -201,7 +201,7 @@ export const workflowService = {
       } else {
         result.push({
           Id: workflowId,
-          StatusCode: putResponse.status,
+          StatusCode: putResponse.StatusCode,
           LocalPath: file
         })
       }
