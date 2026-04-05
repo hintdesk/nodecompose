@@ -1,16 +1,19 @@
+import './EditorPanel.css'
+import { Button } from '@/components/ui/button'
+import { readFile, writeFile } from '@/lib/ipc'
 import { useState, useEffect } from 'react'
 import Editor from '@monaco-editor/react'
-import { readFile, writeFile } from '@/lib/ipc'
-import './EditorPanel.css'
 
 interface EditorPanelProps {
   filePath: string | null
   onContentChange: (content: string) => void
+  reloadTrigger?: number
 }
 
 export default function EditorPanel({
   filePath,
   onContentChange,
+  reloadTrigger,
 }: EditorPanelProps) {
   const [content, setContent] = useState<string>('')
   const [language, setLanguage] = useState<string>('plaintext')
@@ -28,7 +31,7 @@ export default function EditorPanel({
     }
 
     loadFile()
-  }, [filePath])
+  }, [filePath, reloadTrigger])
 
   const loadFile = async () => {
     try {
@@ -126,18 +129,19 @@ export default function EditorPanel({
 
   return (
     <div className="editor-panel flex flex-col">
-      <div className="border-b px-4 py-2 text-sm font-semibold flex items-center justify-between">
+      <div className="border-b px-4 py-2 font-semibold flex items-center justify-between">
         <div>
           <span>{fileName}</span>
           {isDirty && <span className="ml-2 text-yellow-500">●</span>}
         </div>
         {isDirty && (
-          <button
+          <Button
             onClick={handleSave}
-            className="text-xs px-2 py-1 bg-primary text-primary-foreground rounded hover:bg-primary/90"
+            size="sm"
+            variant="outline"
           >
             Save (Ctrl+S)
-          </button>
+          </Button>
         )}
       </div>
       
