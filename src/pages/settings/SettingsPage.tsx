@@ -1,13 +1,12 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import type { Workspace } from '@/entities/Workspace'
-import { workspaceService } from '@/services/workspace.service'
+import './SettingsPage.css'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft } from 'lucide-react'
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
+import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { workspaceService } from '@/services/workspace.service'
 import SettingsSidebar from '@/components/layout/settings/SettingsSidebar'
+import type { Workspace } from '@/entities/Workspace'
 import Workspaces from '@/components/layout/settings/Workspaces'
-import './SettingsPage.css'
 
 type SettingsView = 'workspace' | null
 
@@ -36,7 +35,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="settings-page flex min-h-screen flex-col bg-background">
       {/* Menu Bar */}
       <div className="border-b bg-background px-4 py-3 flex items-center">
         <Button
@@ -47,26 +46,21 @@ export default function SettingsPage() {
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <p>Settings</p>
+        <p className="text-sm font-bold">Settings</p>
       </div>
 
       {/* Settings Content */}
-      <div className="flex-1 overflow-hidden">
-        <ResizablePanelGroup orientation="horizontal" className="h-full">
-          <ResizablePanel defaultSize={20} minSize={15}>
-            <SettingsSidebar
-              activeView={activeView}
-              workspaces={workspaces}
-              onViewChange={(view) => setActiveView(view as SettingsView)}
-            />
-          </ResizablePanel>
-          <ResizableHandle withHandle />
-          <ResizablePanel defaultSize={80}>
-            <div className="h-full overflow-auto">
-              {renderContent()}
-            </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
+      <div className="flex-1 overflow-hidden flex">
+        <div className="w-64 border-r bg-background">
+          <SettingsSidebar
+            activeView={activeView}
+            workspaces={workspaces}
+            onViewChange={(view) => setActiveView(view as SettingsView)}
+          />
+        </div>
+        <div className="flex-1 overflow-auto">
+          {renderContent()}
+        </div>
       </div>
     </div>
   )
