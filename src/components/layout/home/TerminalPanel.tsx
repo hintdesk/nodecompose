@@ -1,6 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { Terminal } from '@xterm/xterm'
-import { createTerminalSession, writeToTerminal, onTerminalData, onTerminalClose } from '@/lib/ipc'
+import { FitAddon } from '@xterm/addon-fit'
+import { Unicode11Addon } from '@xterm/addon-unicode11'
+import {
+  createTerminalSession,
+  writeToTerminal,
+  resizeTerminal,
+  closeTerminalSession,
+  onTerminalData,
+  onTerminalClose,
+  removeTerminalListeners,
+} from '@/lib/ipc'
 import '@xterm/xterm/css/xterm.css'
 import './TerminalPanel.css'
 
@@ -10,94 +20,89 @@ interface TerminalPanelProps {
 
 export default function TerminalPanel({ workspacePath }: TerminalPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const terminalRef = useRef<Terminal | null>(null)
-  const sessionIdRef = useRef<string | null>(null)
-  const [initialized, setInitialized] = useState(false)
-  const [sessionActive, setSessionActive] = useState(false)
 
   useEffect(() => {
-    initializeTerminal()
-    return () => {
-      cleanupTerminal()
-    }
-  }, [workspacePath])
+    if (!containerRef.current) return
 
-  const initializeTerminal = async () => {
-    if (!containerRef.current || initialized) return
+    const terminal = new Terminal({
+      cursorBlink: true,
+      fontSize: 13,
+      fontFamily: 'Consolas, "Courier New", monospace',
+      theme: {
+        background: '#1e1e1e',
+        foreground: '#d4d4d4',
+        cursor: '#d4d4d4',
+        selectionBackground: '#264f78',
+      },
+      scrollback: 10000,
+      convertEol: false,
+      allowTransparency: false,
+      allowProposedApi: true,
+    })
 
-    try {
-      // Initialize xterm.js terminal
-      const term = new Terminal({
-        rows: 30,
-        cols: 120,
-        theme: {
-          background: '#1e1e1e',
-          foreground: '#d4d4d4',
-        },
-        fontFamily: '"Fira Code", "Source Code Pro", "Consolas", monospace',
-        fontSize: 12,
-        lineHeight: 1.5,
-      })
+    const fitAddon = new FitAddon()
+    const unicode11Addon = new Unicode11Addon()
 
-      term.open(containerRef.current)
-      terminalRef.current = term
+    terminal.loadAddon(fitAddon)
+    terminal.loadAddon(unicode11Addon)
+    terminal.unicode.activeVersion = '11'
 
-      // Create terminal session
-      const sessionId = await createTerminalSession(workspacePath)
-      sessionIdRef.current = sessionId
-      setSessionActive(true)
+    terminal.open(containerRef.current)
+    fitAddon.fit()
 
-      // Write initial message
-      term.writeln(`Terminal ready in: ${workspacePath}`)
-      term.writeln('')
+    let sessionId: string | null = null
 
-      // Handle terminal input
-      term.onData((data) => {
-        if (sessionIdRef.current) {
-          writeToTerminal(sessionIdRef.current, data)
+    // Propagate PTY resize whenever xterm cols/rows change (triggered by fitAddon.fit)
+    terminal.onResize(({ cols, rows }) => {
+      if (sessionId) {
+        resizeTerminal(sessionId, cols, rows)
+      }
+    })
+
+    createTerminalSession(workspacePath).then((id) => {
+      sessionId = id
+
+      onTerminalData(id, (data: string) => {
+        // Detect whether terminal currently holds focus before writing
+        const hadFocus = document.activeElement === terminal.textarea
+        terminal.write(data)
+        terminal.scrollToBottom()
+        // Restore focus so commands like `clear` don't steal it away
+        if (hadFocus) {
+          terminal.focus()
         }
       })
 
-      // Handle terminal data from process
-      onTerminalData(sessionId, (data: string) => {
-        term.write(data)
+      onTerminalClose(id, () => {
+        terminal.write('\r\n[Process exited]\r\n')
+        terminal.scrollToBottom()
       })
 
-      // Handle terminal close
-      onTerminalClose(sessionId, (code: number) => {
-        term.writeln(`\n\nProcess exited with code ${code}`)
-        setSessionActive(false)
+      terminal.onData((input) => {
+        writeToTerminal(id, input)
       })
 
-      setInitialized(true)
-    } catch (error) {
-      console.error('Error initializing terminal:', error)
-      if (containerRef.current) {
-        containerRef.current.innerHTML = `<div style="color: red; padding: 10px;">Failed to initialize terminal: ${(error as Error).message}</div>`
+      terminal.focus()
+    })
+
+    const resizeObserver = new ResizeObserver(() => {
+      fitAddon.fit()
+    })
+    resizeObserver.observe(containerRef.current)
+
+    return () => {
+      resizeObserver.disconnect()
+      if (sessionId) {
+        removeTerminalListeners(sessionId)
+        closeTerminalSession(sessionId)
       }
+      terminal.dispose()
     }
-  }
-
-  const cleanupTerminal = () => {
-    if (terminalRef.current) {
-      terminalRef.current.dispose()
-      terminalRef.current = null
-    }
-    setInitialized(false)
-  }
+  }, [workspacePath])
 
   return (
-    <div className="terminal-panel flex flex-col">
-      <div className="border-b px-4 py-2 text-sm font-semibold flex items-center justify-between">
-        <span>Terminal</span>
-        {sessionActive && (
-          <span className="text-xs text-green-500 flex items-center gap-1">
-            <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
-            Connected
-          </span>
-        )}
-      </div>
-      <div className="flex-1 overflow-hidden" ref={containerRef}></div>
+    <div className="terminal-panel">
+      <div ref={containerRef} className="terminal-container" />
     </div>
   )
 }
