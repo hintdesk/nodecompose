@@ -1,6 +1,6 @@
-import type { Workspace } from '@/entities/Workspace'
 import { getTmpDir, removeDirectory, createDirectory, getFileHash as getFileHashIpc } from '@/lib/ipc'
-import type { FileItem } from '@/lib/ipc'
+import type { FileItem } from '@/entities/FileItem'
+import type { Workspace } from '@/entities/Workspace'
 
 export const folderService = {
   /**

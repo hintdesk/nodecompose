@@ -1,10 +1,10 @@
-import type { WorkflowConflict } from '@/entities/WorkflowConflict'
-import type { Workspace } from '@/entities/Workspace'
-import { readFile, writeFile, listDirectory, deleteFile, getFileHash, type FileItem } from '@/lib/ipc'
-import { normalizeUrl } from '@/utils/url.util'
-import { n8nService, getWorkflow, updateWorkflow } from '@/services/n8n.service'
 import { folderService } from '@/services/folder.service'
-import type { PushResult } from '@/entities/PushResult'
+import { n8nService } from '@/services/n8n.service'
+import { readFile, writeFile, listDirectory, deleteFile, getFileHash } from '@/lib/ipc'
+import { urlUtil } from '@/utils/url.util'
+import type { FileItem } from '@/entities/FileItem'
+import type { Workflow } from '@/entities/Workflow'
+import type { Workspace } from '@/entities/Workspace'
 
 async function pullDelete(localFiles: FileItem[], remoteFiles: FileItem[]): Promise<void> {
   const remoteNames = new Set(remoteFiles.map((f) => f.name))
@@ -26,9 +26,9 @@ async function pullAdd(localFiles: FileItem[], remoteFiles: FileItem[], local: s
 async function getConflicts(
   localFiles: FileItem[],
   remoteFiles: FileItem[],
-): Promise<WorkflowConflict[]> {
+): Promise<Workflow[]> {
   const remoteByName = new Map(remoteFiles.map((f) => [f.name, f]))
-  const conflicts: WorkflowConflict[] = []
+  const conflicts: Workflow[] = []
 
   const bothFiles = localFiles.filter((f) => !f.isDirectory && remoteByName.has(f.name))
 
@@ -50,7 +50,7 @@ async function getConflicts(
           // keep defaults
         }
         conflicts.push({
-          WorkflowId: workflowId,
+          Id: workflowId,
           Name: name,
           LocalPath: localFile.path,
           RemotePath: remoteFile.path,
@@ -145,12 +145,12 @@ function getPushPayload(content: any): Record<string, any> {
 }
 
 export const workflowService = {
-  async pull(workspace: Workspace): Promise<WorkflowConflict[]> {
+  async pull(workspace: Workspace): Promise<Workflow[]> {
     const remoteFolder = await download(workspace)
     return this.sync(workspace.Folder, remoteFolder)
   },
 
-  async sync(local: string, remote: string): Promise<WorkflowConflict[]> {
+  async sync(local: string, remote: string): Promise<Workflow[]> {
     const [localFiles, remoteFiles] = await Promise.all([
       listDirectory(local).catch(() => []),
       listDirectory(remote).catch(() => []),
@@ -161,57 +161,49 @@ export const workflowService = {
     return getConflicts(localFiles, remoteFiles)
   },
 
-  async push(localFiles: string[], selectedWorkspace: Workspace): Promise<PushResult> {
-    const n8nUrl = selectedWorkspace.N8nUrl
-    const apiKey = selectedWorkspace.N8nApiKey
-    const baseUrl = normalizeUrl(n8nUrl)
-    const result: PushResult = {}
+  async push(localFiles: string[], workspace: Workspace): Promise<Workflow[]> {
+    const n8nUrl = workspace.N8nUrl
+    const apiKey = workspace.N8nApiKey
+    const baseUrl = await urlUtil.normalizeUrl(n8nUrl)
+    const result: Workflow[] = []
 
-    for (const filePath of localFiles) {
-      let content: any
-      try {
-        content = JSON.parse(await readFile(filePath))
-      } catch {
-        continue
-      }
-
-      const workflowId = content.id
-      if (!workflowId) continue
-
+    for (const file of localFiles) {
+      const local = JSON.parse(await readFile(file))
+      const workflowId = local.id
       // Get current version from n8n
-      const getResponse = await getWorkflow(baseUrl, apiKey, workflowId)
-
-      if (!getResponse.ok) {
-        result[workflowId] = { status: getResponse.status, filePath }
-        continue
-      }
-
-      const current = await getResponse.json()
-
-      if (current.updatedAt !== content.updatedAt) {
+      const getResponse = await n8nService.getWorkflow(baseUrl, apiKey, workflowId)
+      const remote = getResponse.Source
+      if (remote.updatedAt !== local.updatedAt) {
         // Server has newer version — do not push
-        result[workflowId] = { status: 304, filePath }
+        result.push({
+          Id: workflowId,
+          StatusCode: 304,
+          LocalPath: file
+        })
         continue
       }
 
       // Safe to push - filter payload to only allowed properties
-      const payload = getPushPayload(content)
-
-      const putResponse = await updateWorkflow(baseUrl, workflowId, payload, apiKey)
+      const payload = getPushPayload(local)
+      const putResponse = await n8nService.updateWorkflow(baseUrl, workflowId, payload, apiKey)
 
       if (putResponse.status === 200) {
         // Fetch latest version from endpoint to ensure we have the most recent data
-        const getLatestResponse = await getWorkflow(baseUrl, apiKey, workflowId)
+        const getLatestResponse = await n8nService.getWorkflow(baseUrl, apiKey, workflowId)
+        const latest = getLatestResponse.Source
+        await writeFile(file, JSON.stringify(latest, null, 2))
+        result.push({
+          Id: workflowId,
+          StatusCode: 200,
+          LocalPath: file
+        })
 
-        if (getLatestResponse.ok) {
-          const latest = await getLatestResponse.json()
-          await writeFile(filePath, JSON.stringify(latest, null, 2))
-          result[workflowId] = { status: 200, filePath, updated: true }
-        } else {
-          result[workflowId] = { status: putResponse.status, filePath }
-        }
       } else {
-        result[workflowId] = { status: putResponse.status, filePath }
+        result.push({
+          Id: workflowId,
+          StatusCode: putResponse.status,
+          LocalPath: file
+        })
       }
     }
 

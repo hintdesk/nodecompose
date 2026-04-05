@@ -2,6 +2,8 @@
  * IPC Bridge for communicating with Electron main process
  */
 
+import type { FileItem } from "@/entities/FileItem";
+
 type ElectronAPI = {
   invoke: (channel: string, data?: any) => Promise<any>;
   send: (channel: string, data?: any) => void;
@@ -27,13 +29,6 @@ export async function writeFile(filePath: string, content: string): Promise<void
   if (!result.success) {
     throw new Error(result.error);
   }
-}
-
-export interface FileItem {
-  name: string;
-  isDirectory: boolean;
-  path: string;
-  ModifiedAt?: string;
 }
 
 export async function listDirectory(dirPath: string): Promise<FileItem[]> {
