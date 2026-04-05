@@ -1,37 +1,27 @@
-import { useState, useEffect } from 'react'
-import type { Workspace } from '@/entities/Workspace'
-import { workspaceService } from '@/services/workspace.service'
-import TopMenuBar from '@/components/layout/home/TopMenuBar'
-import FileTreeView from '@/components/layout/home/FileTreeView'
-import EditorPanel from '@/components/layout/home/EditorPanel'
-import TerminalPanel from '@/components/layout/home/TerminalPanel'
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import './HomePage.css'
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
+import { useAppStore } from '@/stores/app.store'
+import { useState, useEffect } from 'react'
+import { workspaceService } from '@/services/workspace.service'
+import EditorPanel from '@/components/layout/home/EditorPanel'
+import FileTreeView from '@/components/layout/home/FileTreeView'
+import HomeMenuBar from '@/components/layout/home/HomeMenuBar'
+import TerminalPanel from '@/components/layout/home/TerminalPanel'
 
 export default function HomePage() {
-  const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(null)
+  const selectedWorkspace = useAppStore(state => state.selectedWorkspace)
+  const setSelectedWorkspace = useAppStore(state => state.setSelectedWorkspace)
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
-  const [refreshKey, setRefreshKey] = useState(0)
+  const [reloadTrigger, setReloadTrigger] = useState(0)
 
   useEffect(() => {
-    // Initialize selected workspace on component mount
     const workspace = workspaceService.initializeSelectedWorkspace()
     setSelectedWorkspace(workspace)
   }, [])
 
-  const handleWorkspaceChange = (workspace: Workspace | null) => {
-    setSelectedWorkspace(workspace)
-    if (workspace) {
-      workspaceService.setSelectedWorkspaceId(workspace.Id)
-    } else {
-      workspaceService.clearSelectedWorkspace()
-    }
+  useEffect(() => {
     setSelectedFile(null)
-  }
-
-  const handleRefresh = () => {
-    setRefreshKey(prev => prev + 1)
-  }
+  }, [selectedWorkspace?.Id])
 
   const handleFileSelect = (filePath: string) => {
     setSelectedFile(filePath)
@@ -42,12 +32,15 @@ export default function HomePage() {
     // File content changes are handled by EditorPanel
   }
 
+  const handleAfterPull = () => {
+    // Trigger reload of currently selected file
+    setReloadTrigger(prev => prev + 1)
+  }
+
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
-      <TopMenuBar
-        selectedWorkspace={selectedWorkspace}
-        onWorkspaceChange={handleWorkspaceChange}
-        onRefresh={handleRefresh}
+      <HomeMenuBar
+        onAfterPull={handleAfterPull}
       />
 
       <div className="min-h-0 flex-1 overflow-hidden">
@@ -55,10 +48,10 @@ export default function HomePage() {
           <ResizablePanelGroup orientation="horizontal" className="h-full min-h-0">
             <ResizablePanel defaultSize={20} minSize={15} className="min-h-0">
               <FileTreeView
-                key={refreshKey}
                 workspacePath={selectedWorkspace.Folder}
                 onFileSelect={handleFileSelect}
                 selectedFile={selectedFile}
+                reloadTrigger={reloadTrigger}
               />
             </ResizablePanel>
             <ResizableHandle withHandle />
@@ -68,6 +61,7 @@ export default function HomePage() {
                   <EditorPanel
                     filePath={selectedFile}
                     onContentChange={handleFileContentChange}
+                    reloadTrigger={reloadTrigger}
                   />
                 </ResizablePanel>
                 <ResizableHandle withHandle />
