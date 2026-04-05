@@ -1,10 +1,9 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, Menu } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import os from 'os';
 import crypto from 'crypto';
-import { spawn } from 'child_process';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import pty from 'node-pty';
@@ -30,6 +29,8 @@ function createWindow () {
 
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
     mainWindow.webContents.openDevTools(); // Uncomment for debugging
+
+    Menu.setApplicationMenu(null);
 }
 
 app.whenReady().then(() => {
@@ -283,6 +284,19 @@ ipcMain.handle('terminal:close', async (event, sessionId) => {
         if (session) {
             session.process.kill();
             terminalSessions.delete(sessionId);
+        }
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('terminal:resize', async (event, params) => {
+    try {
+        const { sessionId, cols, rows } = params;
+        const session = terminalSessions.get(sessionId);
+        if (session) {
+            session.process.resize(Math.max(1, cols), Math.max(1, rows));
         }
         return { success: true };
     } catch (error) {

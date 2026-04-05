@@ -7,6 +7,7 @@ type ElectronAPI = {
   send: (channel: string, data?: any) => void;
   on: (channel: string, callback: (...args: any[]) => void) => void;
   once: (channel: string, callback: (...args: any[]) => void) => void;
+  removeAllListeners: (channel: string) => void;
 };
 
 const electron = (window as any).electron as ElectronAPI;
@@ -156,10 +157,19 @@ export async function closeTerminalSession(sessionId: string): Promise<void> {
   }
 }
 
+export async function resizeTerminal(sessionId: string, cols: number, rows: number): Promise<void> {
+  await electron.invoke('terminal:resize', { sessionId, cols, rows });
+}
+
 export function onTerminalData(sessionId: string, callback: (data: string) => void): void {
   electron.on(`terminal:${sessionId}:data`, callback);
 }
 
 export function onTerminalClose(sessionId: string, callback: (code: number) => void): void {
   electron.on(`terminal:${sessionId}:close`, callback);
+}
+
+export function removeTerminalListeners(sessionId: string): void {
+  electron.removeAllListeners(`terminal:${sessionId}:data`);
+  electron.removeAllListeners(`terminal:${sessionId}:close`);
 }
