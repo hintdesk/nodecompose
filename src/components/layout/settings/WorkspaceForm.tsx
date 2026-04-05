@@ -3,6 +3,7 @@ import type { Workspace } from '@/entities/Workspace'
 import type { N8nProject } from '@/entities/N8nProject'
 import { workspaceService } from '@/services/workspace.service'
 import { n8nService } from '@/services/n8n.service'
+import { useAppStore } from '@/stores/app.store'
 import { pickFolder, createDirectory } from '@/lib/ipc'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,6 +31,8 @@ export default function WorkspaceForm({
   onSave,
   onCancel,
 }: WorkspaceFormProps) {
+  const selectedWorkspace = useAppStore(state => state.selectedWorkspace)
+  const setSelectedWorkspace = useAppStore(state => state.setSelectedWorkspace)
   const [formData, setFormData] = useState<Omit<Workspace, 'Id'>>({
     Name: '',
     N8nUrl: '',
@@ -138,6 +141,10 @@ export default function WorkspaceForm({
         const createdWorkspace = workspaceService.createNewWorkspace(formData)
         onSave(createdWorkspace)
       } else {
+        workspaceService.saveWorkspace(newWorkspace)
+        if (selectedWorkspace && selectedWorkspace.Id === newWorkspace.Id) {
+          setSelectedWorkspace(newWorkspace)
+        }
         onSave(newWorkspace)
       }
 
@@ -158,7 +165,7 @@ export default function WorkspaceForm({
         <Button variant="ghost" size="icon" onClick={onCancel}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h2 className="text-2xl font-bold">
+        <h2 className="text-sm font-bold">
           {mode === 'create' ? 'Create Workspace' : 'Edit Workspace'}
         </h2>
       </div>
@@ -283,7 +290,7 @@ export default function WorkspaceForm({
           <Button variant="outline" onClick={onCancel}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={loading}>
+          <Button onClick={handleSave} disabled={loading} variant="outline">
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
