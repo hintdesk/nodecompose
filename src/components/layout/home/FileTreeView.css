@@ -1,9 +1,8 @@
 .file-tree-view {
   background-color: var(--background);
   padding: 0.5rem;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 13px;
 }
 
 .file-tree-view::-webkit-scrollbar {
