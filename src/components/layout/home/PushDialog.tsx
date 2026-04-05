@@ -1,44 +1,31 @@
-import { useState, useMemo } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, } from '@/components/ui/tooltip'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, } from '@/components/ui/dialog'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { useAppStore } from '@/stores/app.store'
+import { useState, useMemo } from 'react'
+import { workflowService } from '@/services/workflow.service'
+import type { Workflow } from '@/entities/Workflow'
 
-export interface WorkflowFile {
-  Path: string
-  Name: string
-  UpdatedAt: string
-  WorkflowId: string
-}
 
 interface PushDialogProps {
   open: boolean
-  workflows: WorkflowFile[]
+  workflows: Workflow[]
   onClose: () => void
-  onPush: (filePaths: string[]) => Promise<Record<string, number>>
 }
 
-export default function PushDialog({ open, workflows, onClose, onPush }: PushDialogProps) {
+export default function PushDialog({ open, workflows, onClose }: PushDialogProps) {
+  const selectedWorkspace = useAppStore(state => state.selectedWorkspace)
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [pushing, setPushing] = useState(false)
-  const [results, setResults] = useState<Record<string, number>>({})
+  const [results, setResults] = useState<Workflow[]>([])
 
   const filtered = useMemo(
-    () => workflows.filter(wf => wf.Name.toLowerCase().includes(search.toLowerCase())),
+    () => workflows.filter(wf => wf.Name?.toLowerCase().includes(search.toLowerCase())),
     [workflows, search],
   )
 
@@ -55,16 +42,16 @@ export default function PushDialog({ open, workflows, onClose, onPush }: PushDia
     if (selected.size === filtered.length && filtered.length > 0) {
       setSelected(new Set())
     } else {
-      setSelected(new Set(filtered.map(wf => wf.Path)))
+      setSelected(new Set(filtered.map(wf => wf.LocalPath!)))
     }
   }
 
   const handlePush = async () => {
     const filePaths = Array.from(selected)
-    if (filePaths.length === 0) return
+    if (filePaths.length === 0 || !selectedWorkspace) return
     setPushing(true)
     try {
-      const res = await onPush(filePaths)
+      const res = await workflowService.push(filePaths, selectedWorkspace)
       setResults(res)
     } finally {
       setPushing(false)
@@ -74,13 +61,15 @@ export default function PushDialog({ open, workflows, onClose, onPush }: PushDia
   const handleClose = () => {
     setSearch('')
     setSelected(new Set())
-    setResults({})
+    setResults([])
     onClose()
   }
 
-  const getStatus = (wf: WorkflowFile): 'success' | 'conflict' | 'error' | null => {
-    if (!(wf.WorkflowId in results)) return null
-    const code = results[wf.WorkflowId]
+  const getStatus = (wf: Workflow): 'success' | 'conflict' | 'error' | null => {
+    const result = results.find(r => r.Id === wf.Id)
+    if (!result) return null
+
+    const code = result.StatusCode
     if (code === 200) return 'success'
     if (code === 304) return 'conflict'
     return 'error'
@@ -102,38 +91,38 @@ export default function PushDialog({ open, workflows, onClose, onPush }: PushDia
           />
 
           <div className="max-h-80 overflow-y-auto border rounded-md">
-            <table className="w-full text-sm">
-              <thead className="border-b bg-muted/50 sticky top-0">
-                <tr>
-                  <th className="px-4 py-2 text-left w-8">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>
                     <Checkbox
                       checked={filtered.length > 0 && selected.size === filtered.length}
                       onCheckedChange={toggleAll}
                     />
-                  </th>
-                  <th className="px-4 py-2 text-left font-semibold">Name</th>
-                  <th className="px-4 py-2 text-left font-semibold">Updated</th>
-                  <th className="px-4 py-2 text-center font-semibold w-16">Status</th>
-                </tr>
-              </thead>
-              <tbody>
+                  </TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Updated</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {filtered.map(wf => {
                   const status = getStatus(wf)
                   return (
-                    <tr key={wf.Path} className="border-b hover:bg-muted/30">
-                      <td className="px-4 py-2">
+                    <TableRow key={wf.Id!}>
+                      <TableCell>
                         <Checkbox
-                          checked={selected.has(wf.Path)}
-                          onCheckedChange={() => toggleSelect(wf.Path)}
+                          checked={selected.has(wf.LocalPath!)}
+                          onCheckedChange={() => toggleSelect(wf.LocalPath!)}
                         />
-                      </td>
-                      <td className="px-4 py-2">{wf.Name}</td>
-                      <td className="px-4 py-2 text-muted-foreground">
-                        {wf.UpdatedAt ? new Date(wf.UpdatedAt).toLocaleString() : '—'}
-                      </td>
-                      <td className="px-4 py-2 text-center">
+                      </TableCell>
+                      <TableCell>{wf.Name}</TableCell>
+                      <TableCell>
+                        {wf.ModifiedAt ? wf.ModifiedAt.toLocaleString() : '—'}
+                      </TableCell>
+                      <TableCell>
                         {status === 'success' && (
-                          <CheckCircle2 className="h-4 w-4 text-green-500 inline-block" />
+                          <CheckCircle2 className="inline-block h-4 w-4 text-green-500" />
                         )}
                         {(status === 'conflict' || status === 'error') && (
                           <Tooltip>
@@ -149,26 +138,26 @@ export default function PushDialog({ open, workflows, onClose, onPush }: PushDia
                             </TooltipContent>
                           </Tooltip>
                         )}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   )
                 })}
                 {filtered.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
+                  <TableRow>
+                    <TableCell colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
                       No workflows found
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={handleClose}>
               Close
             </Button>
-            <Button onClick={handlePush} disabled={pushing || selected.size === 0}>
+            <Button onClick={handlePush} disabled={pushing || selected.size === 0 || !selectedWorkspace}>
               {pushing ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
