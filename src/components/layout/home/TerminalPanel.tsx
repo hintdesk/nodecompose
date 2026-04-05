@@ -62,15 +62,11 @@ export default function TerminalPanel({ workspacePath }: TerminalPanelProps) {
     createTerminalSession(workspacePath).then((id) => {
       sessionId = id
 
+      // Sync actual xterm dimensions to PTY before any output
+      resizeTerminal(id, terminal.cols, terminal.rows)
+
       onTerminalData(id, (data: string) => {
-        // Detect whether terminal currently holds focus before writing
-        const hadFocus = document.activeElement === terminal.textarea
         terminal.write(data)
-        terminal.scrollToBottom()
-        // Restore focus so commands like `clear` don't steal it away
-        if (hadFocus) {
-          terminal.focus()
-        }
       })
 
       onTerminalClose(id, () => {

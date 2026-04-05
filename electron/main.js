@@ -239,7 +239,12 @@ ipcMain.handle('terminal:create', async (event, workspaceFolder) => {
             cols: 120,
             rows: 30,
             cwd: workspaceFolder,
-            env: process.env,
+            env: {
+                ...process.env,
+                TERM: 'xterm-256color',
+                COLORTERM: 'truecolor',
+                TERM_PROGRAM: 'xterm',
+            },
         });
 
         // Store the process

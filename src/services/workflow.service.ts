@@ -81,24 +81,39 @@ async function download(workspace: Workspace): Promise<string> {
 }
 
 function getPushPayload(content: any): Record<string, any> {
-  const allowedKeys = ['connections', 'name', 'nodes', 'settings', 'pinData', 'shared', 'staticData']
+  // const allowedKeys = ['connections', 'name', 'nodes', 'settings', 'pinData', 'shared', 'staticData']
+  const allowedKeys = ['connections', 'name', 'nodes', 'settings']
   return allowedKeys.reduce(
     (acc, key) => {
       if (key in content) {
-        if (key === 'shared' && typeof content[key] === 'object' && content[key] !== null) {
-          // Filter shared to only allow specific sub-keys
+        if (key === 'shared' && Array.isArray(content[key])) {
+          // Filter each shared item to only allow specific sub-keys
           const allowedSharedKeys = ['project', 'projectId', 'role', 'workflowId']
-          const filteredShared = allowedSharedKeys.reduce(
-            (sharedObj, subKey) => {
-              if (subKey in content[key]) {
-                sharedObj[subKey] = content[key][subKey]
-              }
-              return sharedObj
-            },
-            {} as Record<string, any>,
-          )
-          // Only include shared if it has properties
-          if (Object.keys(filteredShared).length > 0) {
+          const filteredShared = content[key]
+            .filter((item: unknown) => typeof item === 'object' && item !== null)
+            .map((item: Record<string, any>) => {
+              const filteredItem = allowedSharedKeys.reduce(
+                (sharedObj, subKey) => {
+                  if (subKey in item) {
+                    if (subKey === 'project' && typeof item.project === 'object' && item.project !== null) {
+                      const projectName = item.project.name
+                      if (projectName !== undefined && projectName !== null) {
+                        sharedObj.project = { name: projectName }
+                      }
+                    } else {
+                      sharedObj[subKey] = item[subKey]
+                    }
+                  }
+                  return sharedObj
+                },
+                {} as Record<string, any>,
+              )
+
+              return filteredItem
+            })
+            .filter((item: Record<string, any>) => Object.keys(item).length > 0)
+
+          if (filteredShared.length > 0) {
             acc[key] = filteredShared
           }
         } else if (key === 'settings' && typeof content[key] === 'object' && content[key] !== null) {
@@ -133,7 +148,7 @@ function getPushPayload(content: any): Record<string, any> {
         } else {
           // For other keys, only include if not null and not empty object
           const value = content[key]
-          if (value !== null && value !== undefined && !(typeof value === 'object' && Object.keys(value).length === 0)) {
+          if (value !== null && value !== undefined) {
             acc[key] = value
           }
         }
