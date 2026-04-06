@@ -167,6 +167,16 @@ ipcMain.handle('system:tmpdir', async (event) => {
     }
 });
 
+ipcMain.handle('app:version', async () => {
+    try {
+        const packagePath = path.join(__dirname, '../package.json');
+        const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf-8'));
+        return { success: true, version: packageJson.version || '0.0.0' };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
 // ==================== FOLDER PICKER ====================
 
 ipcMain.handle('dialog:openDirectory', async (event) => {

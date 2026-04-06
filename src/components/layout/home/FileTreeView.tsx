@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 import { File } from 'lucide-react'
 import { listDirectory } from '@/lib/ipc'
 import { useState, useEffect } from 'react'
+import { getFontConfig } from '@/utils/font.util'
 import type { FileItem } from '@/entities/FileItem'
 
 interface FileNode extends FileItem {
@@ -22,6 +23,7 @@ export default function FileTreeView({
   selectedFile,
   reloadTrigger = 0,
 }: FileTreeViewProps) {
+  const { FontFamily, FontSize } = getFontConfig()
   const [root, setRoot] = useState<FileNode | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -85,7 +87,10 @@ export default function FileTreeView({
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-full text-sm text-destructive p-4 text-center">
+      <div
+        className="flex items-center justify-center h-full text-sm text-destructive p-4 text-center"
+        style={{ fontFamily: FontFamily, fontSize: `${FontSize}px` }}
+      >
         {error}
       </div>
     )
@@ -93,7 +98,10 @@ export default function FileTreeView({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+      <div
+        className="flex items-center justify-center h-full text-sm text-muted-foreground"
+        style={{ fontFamily: FontFamily, fontSize: `${FontSize}px` }}
+      >
         Loading...
       </div>
     )
@@ -101,14 +109,20 @@ export default function FileTreeView({
 
   if (!root) {
     return (
-      <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+      <div
+        className="flex items-center justify-center h-full text-sm text-muted-foreground"
+        style={{ fontFamily: FontFamily, fontSize: `${FontSize}px` }}
+      >
         No files
       </div>
     )
   }
 
   return (
-    <div className="file-tree-view border-r overflow-auto h-full">
+    <div
+      className="file-tree-view border-r overflow-auto h-full"
+      style={{ fontFamily: FontFamily, fontSize: `${FontSize}px` }}
+    >
       {root.children && root.children.length > 0 ? (
         root.children.map(child => (
           <TreeNode key={child.path} node={child} />

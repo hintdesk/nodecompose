@@ -86,6 +86,14 @@ export async function getTmpDir(): Promise<string> {
   return result.tmpdir;
 }
 
+export async function getAppVersion(): Promise<string> {
+  const result = await electron.invoke('app:version');
+  if (!result.success) {
+    throw new Error(result.error);
+  }
+  return result.version;
+}
+
 // ==================== FOLDER PICKER ====================
 
 export async function pickFolder(): Promise<string | null> {

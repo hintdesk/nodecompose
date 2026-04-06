@@ -1,25 +1,49 @@
 import { cn } from '@/lib/utils'
-import type { Workspace } from '@/entities/Workspace'
+import { getAppVersion } from '@/lib/ipc'
+import { useEffect, useState } from 'react'
 import './SettingsSidebar.css'
 
 interface SettingsSidebarProps {
   activeView: string | null
-  workspaces: Workspace[]
   onViewChange: (view: string) => void
 }
 
 export default function SettingsSidebar({
   activeView,
-  workspaces,
   onViewChange,
 }: SettingsSidebarProps) {
+  const [appVersion, setAppVersion] = useState('')
+
+  useEffect(() => {
+    let mounted = true
+
+    const loadVersion = async () => {
+      try {
+        const version = await getAppVersion()
+        if (mounted) {
+          setAppVersion(version)
+        }
+      } catch {
+        if (mounted) {
+          setAppVersion('')
+        }
+      }
+    }
+
+    loadVersion()
+
+    return () => {
+      mounted = false
+    }
+  }, [])
+
   const menuItems = [
     { id: 'workspace', label: 'Workspaces' },
   ]
 
   return (
     <div className="settings-sidebar border-r bg-background">
-      <div className="p-4">
+      <div className="settings-sidebar-content p-4">
         <ul className="space-y-2">
           {menuItems.map(item => (
             <li key={item.id}>
@@ -34,24 +58,13 @@ export default function SettingsSidebar({
               >
                 {item.label}
               </button>
-              {item.id === 'workspace' && workspaces.length > 0 && (
-                <ul className="mt-1 space-y-1 pl-4">
-                  {workspaces.map(workspace => (
-                    <li key={workspace.Id}>
-                      <button
-                        onClick={() => onViewChange('workspace')}
-                        className="w-full truncate rounded px-2 py-1 text-left text-xs text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
-                        title={workspace.Name}
-                      >
-                        {workspace.Name}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
             </li>
           ))}
         </ul>
+      </div>
+
+      <div className="settings-sidebar-footer border-t px-4 py-3 text-xs text-muted-foreground">
+        Version {appVersion || '-'}
       </div>
     </div>
   )

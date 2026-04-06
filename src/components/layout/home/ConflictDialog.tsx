@@ -19,6 +19,7 @@ import {
 import { readFile, writeFile } from '@/lib/ipc'
 import { AlertTriangle } from 'lucide-react'
 import type { Workflow } from '@/entities/Workflow'
+import DiffDialog from './DiffDialog'
 
 interface ConflictDialogProps {
   open: boolean
@@ -179,33 +180,13 @@ export default function ConflictDialog({ open, conflicts, onClose }: ConflictDia
         </DialogContent>
       </Dialog>
 
-      <Dialog open={diffOpen} onOpenChange={setDiffOpen}>
-        <DialogContent className="max-w-6xl">
-          <DialogHeader>
-            <DialogTitle>Diff: {diffTitle}</DialogTitle>
-            <DialogDescription>Compare local workflow and n8n workflow content.</DialogDescription>
-          </DialogHeader>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="min-w-0">
-              <p className="mb-2 text-sm font-semibold">Local</p>
-              <pre className="max-h-[420px] overflow-auto rounded-md border bg-muted/30 p-3 text-xs">
-                {localDiff}
-              </pre>
-            </div>
-            <div className="min-w-0">
-              <p className="mb-2 text-sm font-semibold">n8n</p>
-              <pre className="max-h-[420px] overflow-auto rounded-md border bg-muted/30 p-3 text-xs">
-                {remoteDiff}
-              </pre>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDiffOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DiffDialog
+        open={diffOpen}
+        title={diffTitle}
+        localContent={localDiff}
+        remoteContent={remoteDiff}
+        onOpenChange={setDiffOpen}
+      />
     </>
   )
 }

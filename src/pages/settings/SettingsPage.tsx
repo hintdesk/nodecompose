@@ -3,9 +3,7 @@ import { Button } from '@/components/ui/button'
 import { ChevronLeft } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
-import { workspaceService } from '@/services/workspace.service'
 import SettingsSidebar from '@/components/layout/settings/SettingsSidebar'
-import type { Workspace } from '@/entities/Workspace'
 import Workspaces from '@/components/layout/settings/Workspaces'
 
 type SettingsView = 'workspace' | null
@@ -13,13 +11,6 @@ type SettingsView = 'workspace' | null
 export default function SettingsPage() {
   const navigate = useNavigate()
   const [activeView, setActiveView] = useState<SettingsView>('workspace')
-  const [workspaces, setWorkspaces] = useState<Workspace[]>(() =>
-    workspaceService.getAllWorkspaces(),
-  )
-
-  const handleWorkspaceListChange = (updatedWorkspaces: Workspace[]) => {
-    setWorkspaces(updatedWorkspaces)
-  }
 
   const handleBack = () => {
     navigate('/')
@@ -28,9 +19,9 @@ export default function SettingsPage() {
   const renderContent = () => {
     switch (activeView) {
       case 'workspace':
-        return <Workspaces onWorkspaceListChange={handleWorkspaceListChange} />
+        return <Workspaces />
       default:
-        return <Workspaces onWorkspaceListChange={handleWorkspaceListChange} />
+        return <Workspaces />
     }
   }
 
@@ -54,7 +45,6 @@ export default function SettingsPage() {
         <div className="w-64 border-r bg-background">
           <SettingsSidebar
             activeView={activeView}
-            workspaces={workspaces}
             onViewChange={(view) => setActiveView(view as SettingsView)}
           />
         </div>

@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { readFile, writeFile } from '@/lib/ipc'
 import { useState, useEffect } from 'react'
 import Editor from '@monaco-editor/react'
+import { getFontConfig } from '@/utils/font.util'
 
 interface EditorPanelProps {
   filePath: string | null
@@ -15,6 +16,7 @@ export default function EditorPanel({
   onContentChange,
   reloadTrigger,
 }: EditorPanelProps) {
+  const { FontFamily, FontSize } = getFontConfig()
   const [content, setContent] = useState<string>('')
   const [language, setLanguage] = useState<string>('plaintext')
   const [loading, setLoading] = useState(false)
@@ -117,7 +119,10 @@ export default function EditorPanel({
 
   if (!filePath) {
     return (
-      <div className="editor-panel flex items-center justify-center">
+      <div
+        className="editor-panel flex items-center justify-center"
+        style={{ fontFamily: FontFamily, fontSize: `${FontSize}px` }}
+      >
         <div className="text-center text-muted-foreground">
           <p className="text-sm">Select a file to view and edit</p>
         </div>
@@ -128,7 +133,10 @@ export default function EditorPanel({
   const fileName = filePath.split('\\').pop() || filePath.split('/').pop() || 'Untitled'
 
   return (
-    <div className="editor-panel flex flex-col">
+    <div
+      className="editor-panel flex flex-col"
+      style={{ fontFamily: FontFamily, fontSize: `${FontSize}px` }}
+    >
       <div className="border-b px-4 py-2 font-semibold flex items-center justify-between">
         <div>
           <span>{fileName}</span>
@@ -165,7 +173,8 @@ export default function EditorPanel({
             theme="vs-dark"
             options={{
               minimap: { enabled: false },
-              fontSize: 13,
+              fontFamily: FontFamily,
+              fontSize: FontSize,
               wordWrap: 'on',
               scrollBeyondLastLine: false,
               smoothScrolling: true,

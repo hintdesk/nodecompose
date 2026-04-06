@@ -11,6 +11,7 @@ import {
   onTerminalClose,
   removeTerminalListeners,
 } from '@/lib/ipc'
+import { getFontConfig } from '@/utils/font.util'
 import '@xterm/xterm/css/xterm.css'
 import './TerminalPanel.css'
 
@@ -20,14 +21,15 @@ interface TerminalPanelProps {
 
 export default function TerminalPanel({ workspacePath }: TerminalPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const { FontFamily, FontSize } = getFontConfig()
 
   useEffect(() => {
     if (!containerRef.current) return
 
     const terminal = new Terminal({
       cursorBlink: true,
-      fontSize: 13,
-      fontFamily: 'Consolas, "Courier New", monospace',
+      fontSize: FontSize,
+      fontFamily: FontFamily,
       theme: {
         background: '#1e1e1e',
         foreground: '#d4d4d4',
@@ -94,7 +96,7 @@ export default function TerminalPanel({ workspacePath }: TerminalPanelProps) {
       }
       terminal.dispose()
     }
-  }, [workspacePath])
+  }, [workspacePath, FontFamily, FontSize])
 
   return (
     <div className="terminal-panel">
