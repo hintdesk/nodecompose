@@ -1,8 +1,26 @@
 import { urlUtil } from '@/utils/url.util'
 import type { N8nProject } from '@/entities/N8nProject'
-import type { Workflow } from '@/entities/Workflow';
+import type { Workflow } from '@/entities/Workflow'
+
+function getLastPullStorageKey(n8nUrl: string, projectId: string): string {
+  return `n8n:lastPull:${n8nUrl}:${projectId}`
+}
 
 export const n8nService = {
+  setLastPullDate(n8nUrl: string, projectId: string): void {
+    localStorage.setItem(getLastPullStorageKey(n8nUrl, projectId), new Date().toISOString())
+  },
+
+  getLastPullDate(n8nUrl: string, projectId: string): Date | null {
+    const value = localStorage.getItem(getLastPullStorageKey(n8nUrl, projectId))
+    if (!value) {
+      return null
+    }
+
+    const parsed = new Date(value)
+    return Number.isNaN(parsed.getTime()) ? null : parsed
+  },
+
   async getProjects(n8nUrl: string, apiKey: string): Promise<N8nProject[]> {
     const baseUrl = await urlUtil.normalizeUrl(n8nUrl)
     const response = await fetch(`${baseUrl}/api/v1/projects`, {
@@ -22,9 +40,9 @@ export const n8nService = {
     return (data.data || []).map((p: any) => ({ Id: p.id, Name: p.name }))
   },
 
-  async getWorkflows(n8nUrl: string, apiKey: string, projectId: string): Promise<any[]> {
+  async getWorkflowMetadata(n8nUrl: string, apiKey: string, projectId: string): Promise<Workflow[]> {
     const baseUrl = await urlUtil.normalizeUrl(n8nUrl)
-    const workflowIds: string[] = []
+    const workflows: Workflow[] = []
     let cursor: string | null = null
 
     // First, fetch all workflow IDs using pagination
@@ -47,14 +65,43 @@ export const n8nService = {
 
       const data = await response.json()
 
-      // Extract only workflow IDs from the list
-      const ids = (data.data || []).map((w: any) => w.id)
-      workflowIds.push(...ids)
+      const wks = (data.data || []).map((w: any) => ({
+        Id: w.id,
+        Name: w.name,
+        UpdatedAt: w.updatedAt ? new Date(w.updatedAt) : undefined,
+      }))
+      workflows.push(...wks)
 
       cursor = data.nextCursor || null
     } while (cursor)
 
-    // Then, fetch the full content of each workflow individually
+    return workflows
+  },
+
+  async getWorkflows(
+    n8nUrl: string,
+    apiKey: string,
+    projectId: string,
+    workflows: Workflow[]
+
+  ): Promise<any[]> {
+    const baseUrl = await urlUtil.normalizeUrl(n8nUrl)
+    const lastPullDate = this.getLastPullDate(n8nUrl, projectId)
+
+    const filteredWorkflows = workflows.filter((workflow) => {
+      if (!lastPullDate) {
+        return true
+      }
+      if (!workflow.UpdatedAt) {
+        return false
+      }
+      return workflow.UpdatedAt > lastPullDate
+    })
+
+    const workflowIds = filteredWorkflows
+      .map((workflow) => workflow.Id)
+      .filter((id): id is string => !!id)
+
     const allWorkflows: any[] = []
     for (const workflowId of workflowIds) {
       try {
@@ -68,22 +115,22 @@ export const n8nService = {
         }
       } catch (error) {
         console.warn(`Failed to fetch workflow ${workflowId}:`, error)
-        // Continue with next workflow
       }
     }
 
     return allWorkflows
   },
 
+
   async getWorkflow(n8nUrl: string, apiKey: string, workflowId: string): Promise<Workflow> {
     const response = await fetch(`${n8nUrl}/api/v1/workflows/${workflowId}`, {
       headers: { 'X-N8N-API-KEY': apiKey },
-    });
+    })
 
     return {
       StatusCode: response.status,
       Source: response.ok ? await response.json() : null,
-    };
+    }
   },
 
   async updateWorkflow(

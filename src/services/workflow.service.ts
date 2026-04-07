@@ -63,18 +63,32 @@ async function getConflicts(
 }
 
 async function download(workspace: Workspace): Promise<string> {
-  const workflows = await n8nService.getWorkflows(
+  // Read metadata of all workflows
+  const workflows = await n8nService.getWorkflowMetadata(
     workspace.N8nUrl,
     workspace.N8nApiKey,
     workspace.N8nProjectId,
   )
 
-  const remoteFolder = await folderService.newN8nPath(workspace)
+  var remoteFolder = await folderService.removeDeleted(workspace, workflows)
 
-  for (const wf of workflows) {
-    const safeName = String(wf.name).replace(/[/\\?%*:|"<>]/g, '_')
-    const filePath = `${remoteFolder}/${safeName}.${wf.id}.json`
-    await writeFile(filePath, JSON.stringify(wf, null, 2))
+  const fullWorkflows = await n8nService.getWorkflows(
+    workspace.N8nUrl,
+    workspace.N8nApiKey,
+    workspace.N8nProjectId,
+    workflows
+  )
+
+  for (const wf of fullWorkflows) {
+    const fileName = folderService.getWorkflowFileName({
+      Id: wf.id,
+      Name: wf.name,
+    } as Workflow);
+
+    if (fileName) {
+      const filePath = `${remoteFolder}/${fileName}`
+      await writeFile(filePath, JSON.stringify(wf, null, 2))
+    }
   }
 
   return remoteFolder
@@ -162,7 +176,11 @@ function getPushPayload(content: any): Record<string, any> {
 export const workflowService = {
   async pull(workspace: Workspace): Promise<Workflow[]> {
     const remoteFolder = await download(workspace)
-    return this.sync(workspace.Folder, remoteFolder)
+    const conflicts = await this.sync(workspace.Folder, remoteFolder)
+    if (conflicts.length === 0) {
+      n8nService.setLastPullDate(workspace.N8nUrl, workspace.N8nProjectId)
+    }
+    return conflicts
   },
 
   async sync(local: string, remote: string): Promise<Workflow[]> {

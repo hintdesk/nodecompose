@@ -1,6 +1,9 @@
-import { getTmpDir, removeDirectory, createDirectory, getFileHash as getFileHashIpc } from '@/lib/ipc'
+import { getTmpDir, createDirectory, fileExists, listDirectory, deleteFile, getFileHash as getFileHashIpc } from '@/lib/ipc'
 import type { FileItem } from '@/entities/FileItem'
+import type { Workflow } from '@/entities/Workflow'
 import type { Workspace } from '@/entities/Workspace'
+
+
 
 export const folderService = {
   /**
@@ -9,27 +12,29 @@ export const folderService = {
    */
   async getN8nPath(workspace: Workspace): Promise<string> {
     const tmpdir = await getTmpDir()
-    return `${tmpdir}/NodeCompose/${workspace.N8nProjectId}`
-  },
+    const folderPath = `${tmpdir}/NodeCompose/${workspace.Id}/${workspace.N8nProjectId}`;
 
-  /**
-   * Create a fresh n8n folder for a workspace
-   * If folder exists, delete it recursively first, then create new
-   */
-  async newN8nPath(workspace: Workspace): Promise<string> {
-    const folderPath = await this.getN8nPath(workspace)
-
-    // Delete folder recursively if it exists
-    try {
-      await removeDirectory(folderPath)
-    } catch (error) {
-      console.warn(`Failed to remove ${folderPath}:`, error)
+    // Create folder if it doesn't exist
+    if (!(await fileExists(folderPath))) {
+      await createDirectory(folderPath)
     }
 
-    // Create the folder fresh
-    await createDirectory(folderPath)
-
     return folderPath
+  },
+  
+  async removeDeleted(workspace: Workspace, workflows: Workflow[]): Promise<string> {
+    const folderPath = await this.getN8nPath(workspace)
+    const expectedFileNames = new Set(
+      workflows
+        .map((workflow) => this.getWorkflowFileName(workflow))
+        .filter((fileName): fileName is string => !!fileName),
+    )
+
+    const files = await listDirectory(folderPath).catch(() => [])
+    const toDelete = files.filter((file) => !file.isDirectory && !expectedFileNames.has(file.name))
+
+    await Promise.all(toDelete.map((file) => deleteFile(file.path).catch(() => { })))
+    return folderPath;
   },
 
   /**
@@ -38,4 +43,12 @@ export const folderService = {
   async getFileHash(fileItem: FileItem): Promise<string> {
     return await getFileHashIpc(fileItem.path)
   },
+
+  getWorkflowFileName(workflow: Workflow): string | null {
+    if (!workflow.Id || !workflow.Name) {
+      return null
+    }
+    const safeName = workflow.Name.replace(/[/\\?%*:|"<>]/g, '_')
+    return `${safeName}.${workflow.Id}.json`
+  }
 }

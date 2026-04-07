@@ -6,4 +6,5 @@ export interface Workflow {
   Name?: string
   RemotePath?: string
   ModifiedAt?: Date
+  UpdatedAt?: Date
 }
