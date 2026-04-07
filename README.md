@@ -19,6 +19,14 @@ When building workflows with coding agents, it is often faster to work with vers
 - Embedded editor and terminal for agent-assisted workflow development.
 - Desktop runtime (Electron) with local file operations and PTY terminal support.
 
+## Screenshots
+
+### Home
+![Home](readme/home.jpg)
+
+### Settings
+![Settings](readme/settings.jpg)
+
 ## Tech Stack
 
 - React + TypeScript + Vite
