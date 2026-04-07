@@ -14,11 +14,14 @@ const __dirname = path.dirname(__filename);
 
 let mainWindow;
 const terminalSessions = new Map();
+const isDev = !app.isPackaged;
 
 function createWindow () {
     mainWindow = new BrowserWindow({
+        title: 'Node Compose',
         width: 1200,
         height: 800,
+        icon: path.join(__dirname, '../electron/icon.ico'),
         webPreferences: {
             preload: path.join(__dirname, '../electron/preload.js'),
             nodeIntegration: false,
@@ -28,13 +31,15 @@ function createWindow () {
     });
 
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
-    mainWindow.webContents.openDevTools(); // Uncomment for debugging
+    if (isDev) {
+        mainWindow.webContents.openDevTools({ mode: 'detach' });
+    }
 
     Menu.setApplicationMenu(null);
 }
 
 app.whenReady().then(() => {
-    //additional logic here
+    app.setName('Node Compose');
 }).then(createWindow)
 
 app.on('window-all-closed', () => {

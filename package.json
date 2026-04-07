@@ -14,7 +14,7 @@
   },
   "build": {
     "appId": "com.hintdesk.nodecompose",
-    "productName": "NodeCompose",
+    "productName": "Node Compose",
     "directories": {
       "output": "release"
     },

@@ -1,73 +1,65 @@
-# React + TypeScript + Vite
+# Node Compose
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Node Compose is a desktop app for checking out n8n workflows as JSON files, editing them with coding agents, and syncing them back to n8n.
 
-Currently, two official plugins are available:
+## Why This App Exists
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+When building workflows with coding agents, it is often faster to work with versioned JSON files than to edit everything directly in the n8n UI. Node Compose gives you a local, Git-friendly workflow:
 
-## React Compiler
+- Pull workflows from n8n into local JSON files.
+- Use coding agents and your editor workflow to iterate quickly.
+- Review and resolve conflicts between local and remote changes.
+- Push validated updates back to n8n.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Core Features
 
-## Expanding the ESLint configuration
+- Workspace management for multiple n8n environments.
+- Pull / Push workflow synchronization.
+- Conflict detection with side-by-side JSON diff.
+- Embedded editor and terminal for agent-assisted workflow development.
+- Desktop runtime (Electron) with local file operations and PTY terminal support.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Tech Stack
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- React + TypeScript + Vite
+- Electron
+- Monaco Editor
+- xterm.js
+- Zustand
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Getting Started
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Prerequisites
+
+- Node.js 20+
+- npm
+
+### Install
+
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Run the app
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run start
 ```
+
+This command builds the renderer and launches Electron.
+
+## Build a Windows Package
+
+```bash
+npm run electron:build
+```
+
+Output artifacts are written to the release folder.
+
+## Typical Workflow
+
+1. Create or select a workspace with n8n URL and API key.
+2. Pull workflows from n8n.
+3. Edit workflow JSON locally with coding agents.
+4. Resolve conflicts when local and remote differ.
+5. Push updates back to n8n.
