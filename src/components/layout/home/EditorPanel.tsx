@@ -1,6 +1,13 @@
 import './EditorPanel.css'
 import { Button } from '@/components/ui/button'
-import { readFile, writeFile } from '@/lib/ipc'
+import {
+  readFile,
+  writeFile,
+  watchFile,
+  unwatchFile,
+  onFileChanged,
+  removeFileChangedListeners,
+} from '@/lib/ipc'
 import { useState, useEffect } from 'react'
 import Editor from '@monaco-editor/react'
 import { getFontConfig } from '@/utils/font.util'
@@ -33,6 +40,47 @@ export default function EditorPanel({
     }
 
     loadFile()
+  }, [filePath, reloadTrigger])
+
+  useEffect(() => {
+    if (!filePath) return
+
+    let reloadTimeout: ReturnType<typeof setTimeout> | null = null
+
+    const startWatch = async () => {
+      try {
+        await watchFile(filePath)
+      } catch (err) {
+        console.error('Failed to watch file:', err)
+      }
+    }
+
+    startWatch()
+
+    onFileChanged((payload) => {
+      if (payload.filePath !== filePath || payload.eventType === 'error') {
+        return
+      }
+
+      if (reloadTimeout) {
+        clearTimeout(reloadTimeout)
+      }
+
+      // Debounce external file system events fired in bursts.
+      reloadTimeout = setTimeout(() => {
+        loadFile()
+      }, 120)
+    })
+
+    return () => {
+      if (reloadTimeout) {
+        clearTimeout(reloadTimeout)
+      }
+      removeFileChangedListeners()
+      unwatchFile(filePath).catch(() => {
+        // No-op: watcher may already be disposed.
+      })
+    }
   }, [filePath, reloadTrigger])
 
   const loadFile = async () => {

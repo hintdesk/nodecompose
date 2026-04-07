@@ -14,6 +14,7 @@ const __dirname = path.dirname(__filename);
 
 let mainWindow;
 const terminalSessions = new Map();
+const fileWatchers = new Map();
 const isDev = !app.isPackaged;
 
 function createWindow () {
@@ -43,6 +44,11 @@ app.whenReady().then(() => {
 }).then(createWindow)
 
 app.on('window-all-closed', () => {
+    for (const watcher of fileWatchers.values()) {
+        watcher.close();
+    }
+    fileWatchers.clear();
+
     // eslint-disable-next-line no-undef
     if (process.platform !== 'darwin') {
         app.quit()
@@ -317,6 +323,53 @@ ipcMain.handle('terminal:resize', async (event, params) => {
         const session = terminalSessions.get(sessionId);
         if (session) {
             session.process.resize(Math.max(1, cols), Math.max(1, rows));
+        }
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('file:watch', async (event, filePath) => {
+    try {
+        const key = `${event.sender.id}:${filePath}`;
+        const existing = fileWatchers.get(key);
+        if (existing) {
+            existing.close();
+            fileWatchers.delete(key);
+        }
+
+        if (!fs.existsSync(filePath)) {
+            return { success: false, error: 'File does not exist' };
+        }
+
+        const sender = event.sender;
+        const watcher = fs.watch(filePath, { persistent: false }, (eventType) => {
+            if (!sender.isDestroyed()) {
+                sender.send('file:changed', { filePath, eventType });
+            }
+        });
+
+        watcher.on('error', () => {
+            if (!sender.isDestroyed()) {
+                sender.send('file:changed', { filePath, eventType: 'error' });
+            }
+        });
+
+        fileWatchers.set(key, watcher);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('file:unwatch', async (event, filePath) => {
+    try {
+        const key = `${event.sender.id}:${filePath}`;
+        const watcher = fileWatchers.get(key);
+        if (watcher) {
+            watcher.close();
+            fileWatchers.delete(key);
         }
         return { success: true };
     } catch (error) {

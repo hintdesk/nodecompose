@@ -76,6 +76,30 @@ export async function getFileHash(filePath: string): Promise<string> {
   return result.hash;
 }
 
+export async function watchFile(filePath: string): Promise<void> {
+  const result = await electron.invoke('file:watch', filePath);
+  if (!result.success) {
+    throw new Error(result.error);
+  }
+}
+
+export async function unwatchFile(filePath: string): Promise<void> {
+  const result = await electron.invoke('file:unwatch', filePath);
+  if (!result.success) {
+    throw new Error(result.error);
+  }
+}
+
+export function onFileChanged(
+  callback: (payload: { filePath: string; eventType: string }) => void,
+): void {
+  electron.on('file:changed', callback);
+}
+
+export function removeFileChangedListeners(): void {
+  electron.removeAllListeners('file:changed');
+}
+
 // ==================== SYSTEM OPERATIONS ====================
 
 export async function getTmpDir(): Promise<string> {
