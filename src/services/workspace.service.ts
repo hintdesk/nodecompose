@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid'
 import type { Workspace } from '@/entities/Workspace'
+import { urlUtil } from '@/utils/url.util'
 
 const WORKSPACES_KEY = 'workspaces'
 const SELECTED_WORKSPACE_KEY = 'selectedWorkspaceId'
@@ -29,17 +30,19 @@ class WorkspaceService {
   /**
    * Create or update workspace
    */
-  saveWorkspace(workspace: Workspace): void {
+  async saveWorkspace(workspace: Workspace): Promise<void> {
     try {
+      workspace.N8nUrl = await urlUtil.normalizeUrl(workspace.N8nUrl)
+      console.log('Normalized n8n URL:', workspace.N8nUrl);
       const workspaces = this.getAllWorkspaces()
       const index = workspaces.findIndex(ws => ws.Id === workspace.Id)
-      
+
       if (index >= 0) {
         workspaces[index] = workspace
       } else {
         workspaces.push(workspace)
       }
-      
+
       localStorage.setItem(WORKSPACES_KEY, JSON.stringify(workspaces))
     } catch (error) {
       console.error('Error saving workspace to localStorage:', error)
@@ -54,7 +57,7 @@ class WorkspaceService {
       const workspaces = this.getAllWorkspaces()
       const filtered = workspaces.filter(ws => ws.Id !== id)
       localStorage.setItem(WORKSPACES_KEY, JSON.stringify(filtered))
-      
+
       // Clear selected workspace if it was deleted
       if (this.getSelectedWorkspaceId() === id) {
         this.clearSelectedWorkspace()
@@ -67,7 +70,7 @@ class WorkspaceService {
   /**
    * Create new workspace with auto-generated ID
    */
-  createNewWorkspace(data: Omit<Workspace, 'Id'>): Workspace {
+  async createNewWorkspace(data: Omit<Workspace, 'Id'>): Promise<Workspace> {
     const workspace: Workspace = {
       Id: uuidv4(),
       ...data
@@ -131,7 +134,7 @@ class WorkspaceService {
    */
   initializeSelectedWorkspace(): Workspace | null {
     let selected = this.getSelectedWorkspace()
-    
+
     // If no selected workspace, try to use default
     if (!selected) {
       selected = this.getDefaultWorkspace()
@@ -139,7 +142,7 @@ class WorkspaceService {
         this.setSelectedWorkspaceId(selected.Id)
       }
     }
-    
+
     return selected
   }
 }

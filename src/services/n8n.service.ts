@@ -1,18 +1,19 @@
 import { urlUtil } from '@/utils/url.util'
 import type { N8nProject } from '@/entities/N8nProject'
 import type { Workflow } from '@/entities/Workflow'
+import type { Workspace } from '@/entities/Workspace'
 
-function getLastPullStorageKey(n8nUrl: string, projectId: string): string {
-  return `n8n:lastPull:${n8nUrl}:${projectId}`
+function getLastPullStorageKey(workspace: Workspace): string {
+  return `n8n:lastPull:${workspace.Id}:${workspace.N8nProjectId}`
 }
 
 export const n8nService = {
-  setLastPullDate(n8nUrl: string, projectId: string): void {
-    localStorage.setItem(getLastPullStorageKey(n8nUrl, projectId), new Date().toISOString())
+  setLastPullDate(workspace: Workspace): void {
+    localStorage.setItem(getLastPullStorageKey(workspace), new Date().toISOString())
   },
 
-  getLastPullDate(n8nUrl: string, projectId: string): Date | null {
-    const value = localStorage.getItem(getLastPullStorageKey(n8nUrl, projectId))
+  getLastPullDate(workspace: Workspace): Date | null {
+    const value = localStorage.getItem(getLastPullStorageKey(workspace))
     if (!value) {
       return null
     }
@@ -40,23 +41,23 @@ export const n8nService = {
     return (data.data || []).map((p: any) => ({ Id: p.id, Name: p.name }))
   },
 
-  async getWorkflowMetadata(n8nUrl: string, apiKey: string, projectId: string): Promise<Workflow[]> {
-    const baseUrl = await urlUtil.normalizeUrl(n8nUrl)
+  async getWorkflowMetadata(workspace: Workspace): Promise<Workflow[]> {
+    const baseUrl = await urlUtil.normalizeUrl(workspace.N8nUrl)
     const workflows: Workflow[] = []
     let cursor: string | null = null
 
     // First, fetch all workflow IDs using pagination
     do {
       const url = new URL(`${baseUrl}/api/v1/workflows?excludePinnedData=true`)
-      if (projectId !== 'default') {
-        url.searchParams.set('projectId', projectId)
+      if (workspace.N8nProjectId !== 'default') {
+        url.searchParams.set('projectId', workspace.N8nProjectId)
       }
       if (cursor) {
         url.searchParams.set('cursor', cursor)
       }
 
       const response = await fetch(url.toString(), {
-        headers: { 'X-N8N-API-KEY': apiKey },
+        headers: { 'X-N8N-API-KEY': workspace.N8nApiKey },
       })
 
       if (!response.ok) {
@@ -79,14 +80,13 @@ export const n8nService = {
   },
 
   async getWorkflows(
-    n8nUrl: string,
-    apiKey: string,
-    projectId: string,
+    workspace: Workspace,
     workflows: Workflow[]
 
   ): Promise<any[]> {
-    const baseUrl = await urlUtil.normalizeUrl(n8nUrl)
-    const lastPullDate = this.getLastPullDate(n8nUrl, projectId)
+    const baseUrl = await urlUtil.normalizeUrl(workspace.N8nUrl)
+    const lastPullDate = this.getLastPullDate(workspace);
+    console.log('Last pull date:', lastPullDate)
 
     const filteredWorkflows = workflows.filter((workflow) => {
       if (!lastPullDate) {
@@ -106,7 +106,7 @@ export const n8nService = {
     for (const workflowId of workflowIds) {
       try {
         const response = await fetch(`${baseUrl}/api/v1/workflows/${workflowId}`, {
-          headers: { 'X-N8N-API-KEY': apiKey },
+          headers: { 'X-N8N-API-KEY': workspace.N8nApiKey },
         })
 
         if (response.ok) {
@@ -121,10 +121,9 @@ export const n8nService = {
     return allWorkflows
   },
 
-
-  async getWorkflow(n8nUrl: string, apiKey: string, workflowId: string): Promise<Workflow> {
-    const response = await fetch(`${n8nUrl}/api/v1/workflows/${workflowId}`, {
-      headers: { 'X-N8N-API-KEY': apiKey },
+  async getWorkflow(workspace: Workspace, workflowId: string): Promise<Workflow> {
+    const response = await fetch(`${workspace.N8nUrl}/api/v1/workflows/${workflowId}`, {
+      headers: { 'X-N8N-API-KEY': workspace.N8nApiKey },
     })
 
     return {
@@ -134,15 +133,14 @@ export const n8nService = {
   },
 
   async updateWorkflow(
-    baseUrl: string,
+    workspace: Workspace,
     workflowId: string,
     payload: any,
-    apiKey: string,
   ): Promise<Workflow> {
-    const response = await fetch(`${baseUrl}/api/v1/workflows/${workflowId}`, {
+    const response = await fetch(`${workspace.N8nUrl}/api/v1/workflows/${workflowId}`, {
       method: 'PUT',
       headers: {
-        'X-N8N-API-KEY': apiKey,
+        'X-N8N-API-KEY': workspace.N8nApiKey,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),

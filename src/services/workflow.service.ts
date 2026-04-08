@@ -1,7 +1,14 @@
 import { folderService } from '@/services/folder.service'
 import { n8nService } from '@/services/n8n.service'
-import { readFile, writeFile, listDirectory, deleteFile, getFileHash } from '@/lib/ipc'
-import { urlUtil } from '@/utils/url.util'
+import {
+  readFile,
+  writeFile,
+  listDirectory,
+  deleteFile,
+  gitReadHeadFile,
+  gitCommitAll,
+  gitIsRepo,
+} from '@/lib/ipc'
 import type { FileItem } from '@/entities/FileItem'
 import type { Workflow } from '@/entities/Workflow'
 import type { Workspace } from '@/entities/Workspace'
@@ -24,6 +31,7 @@ async function pullAdd(localFiles: FileItem[], remoteFiles: FileItem[], local: s
 }
 
 async function getConflicts(
+  localRoot: string,
   localFiles: FileItem[],
   remoteFiles: FileItem[],
 ): Promise<Workflow[]> {
@@ -35,15 +43,21 @@ async function getConflicts(
   await Promise.all(
     bothFiles.map(async (localFile) => {
       const remoteFile = remoteByName.get(localFile.name)!
-      const [localHash, remoteHash] = await Promise.all([
-        getFileHash(localFile.path),
-        getFileHash(remoteFile.path),
+      const [localContent, remoteContent] = await Promise.all([
+        readFile(localFile.path),
+        readFile(remoteFile.path),
       ])
-      if (localHash !== remoteHash) {
+
+      if (localContent === remoteContent) {
+        return
+      }
+
+      const headContent = await gitReadHeadFile(localRoot, localFile.path)
+      if (headContent === null) {
         let workflowId = ''
         let name = localFile.name
         try {
-          const parsed = JSON.parse(await readFile(localFile.path))
+          const parsed = JSON.parse(localContent)
           workflowId = parsed.id ?? ''
           name = parsed.name ?? localFile.name
         } catch {
@@ -55,7 +69,33 @@ async function getConflicts(
           LocalPath: localFile.path,
           RemotePath: remoteFile.path,
         })
+        return
       }
+
+      if (headContent === localContent && headContent !== remoteContent) {
+        await writeFile(localFile.path, remoteContent)
+        return
+      }
+
+      if (headContent === remoteContent && headContent !== localContent) {
+        return
+      }
+
+      let workflowId = ''
+      let name = localFile.name
+      try {
+        const parsed = JSON.parse(localContent)
+        workflowId = parsed.id ?? ''
+        name = parsed.name ?? localFile.name
+      } catch {
+        // keep defaults
+      }
+      conflicts.push({
+        Id: workflowId,
+        Name: name,
+        LocalPath: localFile.path,
+        RemotePath: remoteFile.path,
+      })
     }),
   )
 
@@ -64,20 +104,11 @@ async function getConflicts(
 
 async function download(workspace: Workspace): Promise<string> {
   // Read metadata of all workflows
-  const workflows = await n8nService.getWorkflowMetadata(
-    workspace.N8nUrl,
-    workspace.N8nApiKey,
-    workspace.N8nProjectId,
-  )
+  const workflows = await n8nService.getWorkflowMetadata(workspace)
 
   var remoteFolder = await folderService.removeDeleted(workspace, workflows)
 
-  const fullWorkflows = await n8nService.getWorkflows(
-    workspace.N8nUrl,
-    workspace.N8nApiKey,
-    workspace.N8nProjectId,
-    workflows
-  )
+  const fullWorkflows = await n8nService.getWorkflows(workspace,workflows )
 
   for (const wf of fullWorkflows) {
     const fileName = folderService.getWorkflowFileName({
@@ -178,7 +209,15 @@ export const workflowService = {
     const remoteFolder = await download(workspace)
     const conflicts = await this.sync(workspace.Folder, remoteFolder)
     if (conflicts.length === 0) {
-      n8nService.setLastPullDate(workspace.N8nUrl, workspace.N8nProjectId)
+      n8nService.setLastPullDate(workspace)
+      try {
+        const isRepo = await gitIsRepo(workspace.Folder)
+        if (isRepo) {
+          await gitCommitAll(workspace.Folder, 'Auto-commit: pull without conflicts')
+        }
+      } catch {
+        // Non-blocking: pull is already completed.
+      }
     }
     return conflicts
   },
@@ -191,20 +230,17 @@ export const workflowService = {
 
     await pullDelete(localFiles, remoteFiles)
     await pullAdd(localFiles, remoteFiles, local)
-    return getConflicts(localFiles, remoteFiles)
+    return getConflicts(local, localFiles, remoteFiles)
   },
 
   async push(localFiles: string[], workspace: Workspace): Promise<Workflow[]> {
-    const n8nUrl = workspace.N8nUrl
-    const apiKey = workspace.N8nApiKey
-    const baseUrl = await urlUtil.normalizeUrl(n8nUrl)
     const result: Workflow[] = []
 
     for (const file of localFiles) {
       const local = JSON.parse(await readFile(file))
       const workflowId = local.id
       // Get current version from n8n
-      const getResponse = await n8nService.getWorkflow(baseUrl, apiKey, workflowId)
+      const getResponse = await n8nService.getWorkflow(workspace, workflowId)
       const remote = getResponse.Source
       if (remote.updatedAt !== local.updatedAt) {
         // Server has newer version — do not push
@@ -218,11 +254,11 @@ export const workflowService = {
 
       // Safe to push - filter payload to only allowed properties
       const payload = getPushPayload(local)
-      const putResponse = await n8nService.updateWorkflow(baseUrl, workflowId, payload, apiKey)
+      const putResponse = await n8nService.updateWorkflow(workspace, workflowId, payload)
 
       if (putResponse.StatusCode === 200) {
         // Fetch latest version from endpoint to ensure we have the most recent data
-        const getLatestResponse = await n8nService.getWorkflow(baseUrl, apiKey, workflowId)
+        const getLatestResponse = await n8nService.getWorkflow(workspace, workflowId)
         const latest = getLatestResponse.Source
         await writeFile(file, JSON.stringify(latest, null, 2))
         result.push({
@@ -237,6 +273,18 @@ export const workflowService = {
           StatusCode: putResponse.StatusCode,
           LocalPath: file
         })
+      }
+    }
+
+    const hasSuccessfulPush = result.some((item) => item.StatusCode === 200)
+    if (hasSuccessfulPush) {
+      try {
+        const isRepo = await gitIsRepo(workspace.Folder)
+        if (isRepo) {
+          await gitCommitAll(workspace.Folder, 'Auto-commit: push successful')
+        }
+      } catch {
+        // Non-blocking: push is already completed.
       }
     }
 

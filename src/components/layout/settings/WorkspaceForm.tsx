@@ -4,7 +4,7 @@ import type { N8nProject } from '@/entities/N8nProject'
 import { workspaceService } from '@/services/workspace.service'
 import { n8nService } from '@/services/n8n.service'
 import { useAppStore } from '@/stores/app.store'
-import { pickFolder, createDirectory } from '@/lib/ipc'
+import { pickFolder, createDirectory, gitIsRepo, gitInit } from '@/lib/ipc'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -132,13 +132,18 @@ export default function WorkspaceForm({
       setSuccess(null)
 
       await createDirectory(formData.Folder)
+      const isRepo = await gitIsRepo(formData.Folder)
+      if (!isRepo) {
+        await gitInit(formData.Folder);
+        console.log('Initialized new git repository in selected folder');
+      }
 
       const newWorkspace: Workspace = workspace
         ? { Id: workspace.Id, ...formData }
         : { Id: '', ...formData }
 
       if (mode === 'create') {
-        const createdWorkspace = workspaceService.createNewWorkspace(formData)
+        const createdWorkspace = await workspaceService.createNewWorkspace(formData)
         onSave(createdWorkspace)
       } else {
         workspaceService.saveWorkspace(newWorkspace)

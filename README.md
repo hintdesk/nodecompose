@@ -22,9 +22,11 @@ When building workflows with coding agents, it is often faster to work with vers
 ## Screenshots
 
 ### Home
+
 ![Home](readme/home.jpg)
 
 ### Settings
+
 ![Settings](readme/settings.jpg)
 
 ## Tech Stack
@@ -41,6 +43,7 @@ When building workflows with coding agents, it is often faster to work with vers
 
 - Node.js 20+
 - npm
+- Git (required so Node Compose can track local workflow changes and commits)
 
 ### Install
 

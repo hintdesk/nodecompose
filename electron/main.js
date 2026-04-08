@@ -239,6 +239,77 @@ ipcMain.handle('git:isInstalled', async (event) => {
     }
 });
 
+ipcMain.handle('git:isRepo', async (event, dirPath) => {
+    try {
+        const dotGitPath = path.join(dirPath, '.git');
+        return { success: true, isRepo: fs.existsSync(dotGitPath) };
+    } catch (error) {
+        return { success: true, isRepo: false };
+    }
+});
+
+ipcMain.handle('git:headFile', async (event, params) => {
+    try {
+        const { dirPath, filePath } = params;
+        const relPath = path.relative(dirPath, filePath).replace(/\\/g, '/');
+        const escapedRelPath = relPath.replace(/"/g, '\\"');
+        const { stdout } = await execPromise(`cd "${dirPath}" && git show HEAD:"${escapedRelPath}"`);
+        return { success: true, content: stdout };
+    } catch (error) {
+        return { success: true, content: null };
+    }
+});
+
+ipcMain.handle('git:changedFiles', async (event, dirPath) => {
+    try {
+        const { stdout } = await execPromise(`cd "${dirPath}" && git -c core.quotepath=off status --porcelain=v1 -z`);
+
+        const entries = stdout.split('\0').filter((entry) => entry.length > 0);
+        const files = [];
+
+        for (let index = 0; index < entries.length; index++) {
+            const entry = entries[index];
+            const status = entry.slice(0, 2);
+            const pathPart = entry.slice(3);
+
+            if (status.startsWith('R') || status.startsWith('C')) {
+                const renamedPath = entries[index + 1];
+                if (renamedPath) {
+                    files.push(renamedPath);
+                    index += 1;
+                    continue;
+                }
+            }
+
+            if (pathPart) {
+                files.push(pathPart);
+            }
+        }
+
+        return { success: true, files };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('git:commitAll', async (event, params) => {
+    try {
+        const { dirPath, message } = params;
+        await execPromise(`cd "${dirPath}" && git add -A`);
+
+        const { stdout } = await execPromise(`cd "${dirPath}" && git status --porcelain`);
+        if (!stdout.trim()) {
+            return { success: true, committed: false };
+        }
+
+        const escapedMessage = String(message || 'Auto-commit').replace(/"/g, '\\"');
+        await execPromise(`cd "${dirPath}" && git commit -m "${escapedMessage}"`);
+        return { success: true, committed: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
 // ==================== TERMINAL/PTY OPERATIONS ====================
 
 ipcMain.handle('terminal:create', async (event, workspaceFolder) => {

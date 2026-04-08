@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button'
-import { readFile, listDirectory } from '@/lib/ipc'
+import { readFile, gitChangedFiles } from '@/lib/ipc'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from '@/components/ui/select'
 import { Settings, Download, Upload, Loader2 } from 'lucide-react'
 import { useAppStore } from '@/stores/app.store'
@@ -73,18 +73,20 @@ export default function HomeMenuBar({
   const handleOpenPush = async () => {
     if (!selectedWorkspace) return
     try {
-      const files = await listDirectory(selectedWorkspace.Folder)
-      const jsonFiles = files.filter(f => !f.isDirectory && f.name.endsWith('.json'))
+      const changedFiles = await gitChangedFiles(selectedWorkspace.Folder)
+      const jsonChangedFiles = changedFiles.filter((file) => file.endsWith('.json'))
 
       const workflowFiles: Workflow[] = []
-      for (const file of jsonFiles) {
+      for (const relativePath of jsonChangedFiles) {
+        const normalizedRelativePath = relativePath.replace(/\\/g, '/')
+        const fullPath = `${selectedWorkspace.Folder}/${normalizedRelativePath}`
         try {
-          const content = JSON.parse(await readFile(file.path))
-          const modifiedAtString = file.ModifiedAt || content.updatedAt;
+          const content = JSON.parse(await readFile(fullPath))
+          const modifiedAtString = content.updatedAt
           const modifiedAt = modifiedAtString ? new Date(modifiedAtString) : undefined
           workflowFiles.push({
-            LocalPath: file.path,
-            Name: content.name || file.name,
+            LocalPath: fullPath,
+            Name: content.name || normalizedRelativePath.split('/').pop() || normalizedRelativePath,
             ModifiedAt: modifiedAt,
             Id: content.id || '',
           })

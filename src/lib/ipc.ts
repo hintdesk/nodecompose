@@ -160,6 +160,38 @@ export async function gitIsInstalled(): Promise<boolean> {
   return result.installed;
 }
 
+export async function gitIsRepo(dirPath: string): Promise<boolean> {
+  const result = await electron.invoke('git:isRepo', dirPath);
+  if (!result.success) {
+    throw new Error(result.error);
+  }
+  return result.isRepo;
+}
+
+export async function gitReadHeadFile(dirPath: string, filePath: string): Promise<string | null> {
+  const result = await electron.invoke('git:headFile', { dirPath, filePath });
+  if (!result.success) {
+    throw new Error(result.error);
+  }
+  return result.content;
+}
+
+export async function gitChangedFiles(dirPath: string): Promise<string[]> {
+  const result = await electron.invoke('git:changedFiles', dirPath);
+  if (!result.success) {
+    throw new Error(result.error);
+  }
+  return result.files;
+}
+
+export async function gitCommitAll(dirPath: string, message: string): Promise<boolean> {
+  const result = await electron.invoke('git:commitAll', { dirPath, message });
+  if (!result.success) {
+    throw new Error(result.error);
+  }
+  return result.committed;
+}
+
 // ==================== TERMINAL/PTY OPERATIONS ====================
 
 export async function createTerminalSession(workspaceFolder: string): Promise<string> {
