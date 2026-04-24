@@ -3,25 +3,7 @@ import type { N8nProject } from '@/entities/N8nProject'
 import type { Workflow } from '@/entities/Workflow'
 import type { Workspace } from '@/entities/Workspace'
 
-function getLastPullStorageKey(workspace: Workspace): string {
-  return `n8n:lastPull:${workspace.Id}:${workspace.N8nProjectId}`
-}
-
 export const n8nService = {
-  setLastPullDate(workspace: Workspace): void {
-    localStorage.setItem(getLastPullStorageKey(workspace), new Date().toISOString())
-  },
-
-  getLastPullDate(workspace: Workspace): Date | null {
-    const value = localStorage.getItem(getLastPullStorageKey(workspace))
-    if (!value) {
-      return null
-    }
-
-    const parsed = new Date(value)
-    return Number.isNaN(parsed.getTime()) ? null : parsed
-  },
-
   async getProjects(n8nUrl: string, apiKey: string): Promise<N8nProject[]> {
     const baseUrl = await urlUtil.normalizeUrl(n8nUrl)
     const response = await fetch(`${baseUrl}/api/v1/projects`, {
@@ -85,20 +67,7 @@ export const n8nService = {
 
   ): Promise<any[]> {
     const baseUrl = await urlUtil.normalizeUrl(workspace.N8nUrl)
-    const lastPullDate = this.getLastPullDate(workspace);
-    console.log('Last pull date:', lastPullDate)
-
-    const filteredWorkflows = workflows.filter((workflow) => {
-      if (!lastPullDate) {
-        return true
-      }
-      if (!workflow.UpdatedAt) {
-        return false
-      }
-      return workflow.UpdatedAt > lastPullDate
-    })
-
-    const workflowIds = filteredWorkflows
+    const workflowIds = workflows
       .map((workflow) => workflow.Id)
       .filter((id): id is string => !!id)
 
