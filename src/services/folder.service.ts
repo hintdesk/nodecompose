@@ -1,4 +1,4 @@
-import { getTmpDir, createDirectory, fileExists, listDirectory, deleteFile, getFileHash as getFileHashIpc } from '@/lib/ipc'
+import { getTmpDir, createDirectory, fileExists, removeDirectory, getFileHash as getFileHashIpc } from '@/lib/ipc'
 import type { FileItem } from '@/entities/FileItem'
 import type { Workflow } from '@/entities/Workflow'
 import type { Workspace } from '@/entities/Workspace'
@@ -22,18 +22,10 @@ export const folderService = {
     return folderPath
   },
   
-  async removeDeleted(workspace: Workspace, workflows: Workflow[]): Promise<string> {
+  async removeDeleted(workspace: Workspace): Promise<string> {
     const folderPath = await this.getN8nPath(workspace)
-    const expectedFileNames = new Set(
-      workflows
-        .map((workflow) => this.getWorkflowFileName(workflow))
-        .filter((fileName): fileName is string => !!fileName),
-    )
-
-    const files = await listDirectory(folderPath).catch(() => [])
-    const toDelete = files.filter((file) => !file.isDirectory && !expectedFileNames.has(file.name))
-
-    await Promise.all(toDelete.map((file) => deleteFile(file.path).catch(() => { })))
+    await removeDirectory(folderPath).catch(() => { })
+    await createDirectory(folderPath)
     return folderPath;
   },
 

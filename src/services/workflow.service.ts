@@ -106,7 +106,7 @@ async function download(workspace: Workspace): Promise<string> {
   // Read metadata of all workflows
   const workflows = await n8nService.getWorkflowMetadata(workspace)
 
-  var remoteFolder = await folderService.removeDeleted(workspace, workflows)
+  var remoteFolder = await folderService.removeDeleted(workspace)
 
   const fullWorkflows = await n8nService.getWorkflows(workspace,workflows )
 
