@@ -209,7 +209,6 @@ export const workflowService = {
     const remoteFolder = await download(workspace)
     const conflicts = await this.sync(workspace.Folder, remoteFolder)
     if (conflicts.length === 0) {
-      n8nService.setLastPullDate(workspace)
       try {
         const isRepo = await gitIsRepo(workspace.Folder)
         if (isRepo) {
